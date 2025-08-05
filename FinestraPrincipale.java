@@ -3,26 +3,33 @@ import java.awt.*;
 import java.util.Vector;
 
 /**
- * FinestraPrincipale.java (Corretto)
+ * FinestraPrincipale.java (Versione Ibrida)
  *
- * Il metodo onModifica è stato leggermente semplificato per passare
- * solo l'oggetto persona necessario al metodo di aggiornamento del database.
+ * Questa versione utilizza il GestorePersistenzaIbrido per salvare i dati
+ * dei contatti sia su database che su file system contemporaneamente.
  */
 public class FinestraPrincipale extends JFrame {
 
-    private GestoreDatabase gestoreDatabase;
+    // Il gestore ibrido che coordina il salvataggio su DB e file.
+    private GestorePersistenzaIbrido gestorePersistenza;
+
     private Vector<Persona> contatti;
     private JTable tabellaContatti;
     private RubricaTableModel tableModel;
     private JButton nuovoButton, modificaButton, eliminaButton;
 
     public FinestraPrincipale() {
-        setTitle("Rubrica Telefonica (Database)");
+        setTitle("Rubrica Telefonica (Ibrida: DB + File)");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(600, 400);
         setLocationRelativeTo(null);
-        gestoreDatabase = new GestoreDatabase();
-        contatti = gestoreDatabase.caricaContatti();
+
+        // Inizializza il nuovo gestore ibrido
+        gestorePersistenza = new GestorePersistenzaIbrido();
+
+        // Carica i contatti (il gestore ibrido li prenderà dal database)
+        contatti = gestorePersistenza.caricaContatti();
+
         initComponents();
     }
 
@@ -51,31 +58,24 @@ public class FinestraPrincipale extends JFrame {
         EditorPersona editor = new EditorPersona(this, null);
         Persona nuovaPersona = editor.showDialog();
         if (nuovaPersona != null) {
-            gestoreDatabase.aggiungiPersona(nuovaPersona);
+            gestorePersistenza.aggiungiPersona(nuovaPersona);
             aggiornaTabellaDaDB();
         }
     }
 
-    // --- METODO MODIFICATO ---
     private void onModifica() {
         int selectedRow = tabellaContatti.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Per modificare è necessario prima selezionare una persona.", "Errore", JOptionPane.ERROR_MESSAGE);
             return;
         }
-
         int modelRow = tabellaContatti.convertRowIndexToModel(selectedRow);
         Persona personaDaModificare = tableModel.getPersonaAt(modelRow);
         
-        // La finestra di dialogo modifica direttamente l'oggetto 'personaDaModificare'
         EditorPersona editor = new EditorPersona(this, personaDaModificare);
-        editor.showDialog(); // Non ci serve il valore di ritorno
-
-        // Controlliamo se l'utente ha salvato (anche se qui non abbiamo modo di saperlo,
-        // per sicurezza eseguiamo sempre l'aggiornamento se la finestra viene chiusa)
-        // In un'app più complessa, showDialog restituirebbe un booleano.
+        editor.showDialog();
         
-        gestoreDatabase.modificaPersona(personaDaModificare); // Passiamo solo l'oggetto modificato
+        gestorePersistenza.modificaPersona(personaDaModificare);
         aggiornaTabellaDaDB();
     }
 
@@ -93,7 +93,7 @@ public class FinestraPrincipale extends JFrame {
                 "Conferma Eliminazione", JOptionPane.YES_NO_OPTION);
 
         if (choice == JOptionPane.YES_OPTION) {
-            gestoreDatabase.eliminaPersona(personaDaEliminare);
+            gestorePersistenza.eliminaPersona(personaDaEliminare);
             aggiornaTabellaDaDB();
         }
     }
@@ -102,8 +102,10 @@ public class FinestraPrincipale extends JFrame {
      * Metodo helper per ricaricare i dati dal database e aggiornare la JTable.
      */
     private void aggiornaTabellaDaDB() {
+        // Chiediamo al gestore ibrido di ricaricare i dati (li prenderà dal DB)
+        Vector<Persona> contattiAggiornati = gestorePersistenza.caricaContatti();
         contatti.clear();
-        contatti.addAll(gestoreDatabase.caricaContatti());
+        contatti.addAll(contattiAggiornati);
         tableModel.fireTableDataChanged();
     }
 }
