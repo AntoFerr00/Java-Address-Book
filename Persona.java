@@ -1,11 +1,13 @@
 /**
- * Persona.java
- * * This class represents the data model for a single contact (Person) in the address book.
- * It's a simple Plain Old Java Object (POJO) with fields for name, surname,
- * address, phone number, and age, along with their respective getters and setters.
+ * Persona.java (Corretto con Costruttore)
+ *
+ * Aggiunto il campo 'id' per mappare la chiave primaria del database.
+ * È stato reinserito il costruttore con tutti i parametri per garantire
+ * la compatibilità con i vecchi file di persistenza durante la compilazione.
  */
 public class Persona {
 
+    private int id;
     private String nome;
     private String cognome;
     private String indirizzo;
@@ -13,18 +15,13 @@ public class Persona {
     private int eta;
 
     /**
-     * Default constructor.
+     * Costruttore di default.
      */
     public Persona() {
     }
 
     /**
-     * Constructor with all fields.
-     * @param nome The first name of the person.
-     * @param cognome The last name of the person.
-     * @param indirizzo The address of the person.
-     * @param telefono The phone number of the person.
-     * @param eta The age of the person.
+     * Costruttore con tutti i parametri, reinserito per compatibilità.
      */
     public Persona(String nome, String cognome, String indirizzo, String telefono, int eta) {
         this.nome = nome;
@@ -34,7 +31,15 @@ public class Persona {
         this.eta = eta;
     }
 
-    // --- Getters and Setters ---
+    // --- Getters e Setters ---
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
 
     public String getNome() {
         return nome;

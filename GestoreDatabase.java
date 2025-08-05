@@ -2,10 +2,10 @@ import java.sql.*;
 import java.util.Vector;
 
 /**
- * GestoreDatabase.java
+ * GestoreDatabase.java (Corretto)
  *
- * Implements the persistence logic using a MySQL database via JDBC.
- * This class replaces GestorePersistenza for database-enabled versions.
+ * Le query di modifica ed eliminazione ora usano l'ID univoco della persona,
+ * risolvendo il bug dell'aggiornamento.
  */
 public class GestoreDatabase {
 
@@ -19,8 +19,7 @@ public class GestoreDatabase {
 
             while (rs.next()) {
                 Persona p = new Persona();
-                // Note: We are not storing the DB 'id' in the Persona object for this implementation,
-                // but it's good practice to have it for update/delete operations.
+                p.setId(rs.getInt("id")); // <-- LEGGIAMO L'ID
                 p.setNome(rs.getString("nome"));
                 p.setCognome(rs.getString("cognome"));
                 p.setIndirizzo(rs.getString("indirizzo"));
@@ -30,12 +29,12 @@ public class GestoreDatabase {
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            // In a real app, show a user-friendly error dialog.
         }
         return contatti;
     }
 
     public void aggiungiPersona(Persona p) {
+        // La query di inserimento non cambia
         String sql = "INSERT INTO persone (nome, cognome, indirizzo, telefono, eta) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -52,21 +51,18 @@ public class GestoreDatabase {
         }
     }
 
-    public void modificaPersona(Persona personaOriginale, Persona personaModificata) {
-        // To update a record, we need a unique identifier. Name+Surname is not ideal
-        // but will work for this example. A database ID would be better.
-        String sql = "UPDATE persone SET nome=?, cognome=?, indirizzo=?, telefono=?, eta=? WHERE nome=? AND cognome=?";
+    // --- METODO MODIFICATO ---
+    public void modificaPersona(Persona persona) {
+        String sql = "UPDATE persone SET nome=?, cognome=?, indirizzo=?, telefono=?, eta=? WHERE id=?";
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, personaModificata.getNome());
-            pstmt.setString(2, personaModificata.getCognome());
-            pstmt.setString(3, personaModificata.getIndirizzo());
-            pstmt.setString(4, personaModificata.getTelefono());
-            pstmt.setInt(5, personaModificata.getEta());
-            // WHERE clause
-            pstmt.setString(6, personaOriginale.getNome());
-            pstmt.setString(7, personaOriginale.getCognome());
+            pstmt.setString(1, persona.getNome());
+            pstmt.setString(2, persona.getCognome());
+            pstmt.setString(3, persona.getIndirizzo());
+            pstmt.setString(4, persona.getTelefono());
+            pstmt.setInt(5, persona.getEta());
+            pstmt.setInt(6, persona.getId()); // <-- USA L'ID NELLA CLAUSOLA WHERE
             
             pstmt.executeUpdate();
 
@@ -75,14 +71,13 @@ public class GestoreDatabase {
         }
     }
 
+    // --- METODO MODIFICATO ---
     public void eliminaPersona(Persona p) {
-        // Again, using name+surname to identify the record to delete.
-        String sql = "DELETE FROM persone WHERE nome=? AND cognome=?";
+        String sql = "DELETE FROM persone WHERE id=?";
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
-            pstmt.setString(1, p.getNome());
-            pstmt.setString(2, p.getCognome());
+            pstmt.setInt(1, p.getId()); // <-- USA L'ID NELLA CLAUSOLA WHERE
             pstmt.executeUpdate();
 
         } catch (SQLException e) {

@@ -8,9 +8,9 @@ import java.util.Properties;
 /**
  * DatabaseManager.java
  *
- * Manages the database connection. It reads connection details from the
- * credenziali_database.properties file and provides a method to get a
- * new connection to the database.
+ * Gestisce la connessione al database. Legge i dettagli della connessione
+ * dal file credenziali_database.properties e fornisce un metodo per ottenere
+ * una nuova connessione al database.
  */
 public class DatabaseManager {
 
@@ -19,7 +19,7 @@ public class DatabaseManager {
     static {
         try (FileInputStream fis = new FileInputStream("credenziali_database.properties")) {
             props.load(fis);
-            // Register the MySQL driver
+            // Registra il driver MySQL
             Class.forName("com.mysql.cj.jdbc.Driver");
         } catch (IOException e) {
             System.err.println("ERRORE: File 'credenziali_database.properties' non trovato o illeggibile.");
@@ -31,9 +31,9 @@ public class DatabaseManager {
     }
 
     /**
-     * Establishes and returns a connection to the database.
-     * @return A Connection object to the database.
-     * @throws SQLException if a database access error occurs.
+     * Stabilisce e restituisce una connessione al database.
+     * @return Un oggetto Connection al database.
+     * @throws SQLException se si verifica un errore di accesso al database.
      */
     public static Connection getConnection() throws SQLException {
         String url = "jdbc:mysql://" + props.getProperty("db.ip") + ":" + props.getProperty("db.port") + "/" + props.getProperty("db.name");
