@@ -3,3 +3,9 @@
 /Main.class
 /Persona.class
 /RubricaTableModel.class
+/AuthService.class
+/DatabaseManager.class
+/FinestraLogin.class
+/GestoreDatabase.class
+/GestorePersistenza.class
+/Utente.class
