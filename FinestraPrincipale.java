@@ -1,9 +1,5 @@
 import javax.swing.*;
 import java.awt.*;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.PrintStream;
-import java.util.Scanner;
 import java.util.Vector;
 
 /**
@@ -11,12 +7,13 @@ import java.util.Vector;
  *
  * This is the main window of the application. It contains the JTable for
  * displaying contacts and the buttons for adding, editing, and deleting them.
- * It also handles the logic for loading contacts from a file on startup and
- * saving them back to the file whenever a change is made.
+ *
+ * It now delegates all file loading and saving operations to the GestorePersistenza class.
  */
 public class FinestraPrincipale extends JFrame {
 
-    private static final String FILE_NAME = "informazioni.txt";
+    // The persistence manager handles all file I/O
+    private GestorePersistenza gestorePersistenza;
 
     // The list of contacts. Vector is used as suggested in the project description.
     private Vector<Persona> contatti;
@@ -39,8 +36,11 @@ public class FinestraPrincipale extends JFrame {
         setSize(600, 400);
         setLocationRelativeTo(null); // Center the window on the screen
 
-        // Load contacts from file before initializing components
-        caricaContatti();
+        // Initialize the persistence manager
+        gestorePersistenza = new GestorePersistenza();
+
+        // Load contacts using the persistence manager
+        contatti = gestorePersistenza.caricaContatti();
 
         // Initialize GUI components
         initComponents();
@@ -51,12 +51,10 @@ public class FinestraPrincipale extends JFrame {
      */
     private void initComponents() {
         // --- Table Panel ---
-        // The table model is created with our list of contacts
         tableModel = new RubricaTableModel(contatti);
         tabellaContatti = new JTable(tableModel);
-        tabellaContatti.setSelectionMode(ListSelectionModel.SINGLE_SELECTION); // Allow only one row to be selected at a time
+        tabellaContatti.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        // Add the table to a JScrollPane to make it scrollable
         JScrollPane scrollPane = new JScrollPane(tabellaContatti);
         add(scrollPane, BorderLayout.CENTER);
 
@@ -80,7 +78,6 @@ public class FinestraPrincipale extends JFrame {
 
     /**
      * Handles the "Nuovo" button click.
-     * Opens the editor dialog for a new person.
      */
     private void onNuovo() {
         EditorPersona editor = new EditorPersona(this, null);
@@ -88,14 +85,14 @@ public class FinestraPrincipale extends JFrame {
 
         if (nuovaPersona != null) {
             contatti.add(nuovaPersona);
-            tableModel.fireTableDataChanged(); // Notify the table model that data has changed
-            salvaContatti(); // Save changes to file
+            tableModel.fireTableDataChanged();
+            // Use the persistence manager to save
+            gestorePersistenza.salvaContatti(contatti);
         }
     }
 
     /**
      * Handles the "Modifica" button click.
-     * Opens the editor dialog for the selected person.
      */
     private void onModifica() {
         int selectedRow = tabellaContatti.getSelectedRow();
@@ -104,21 +101,22 @@ public class FinestraPrincipale extends JFrame {
             return;
         }
 
-        Persona personaDaModificare = tableModel.getPersonaAt(selectedRow);
+        // Convert view index to model index in case of sorting/filtering
+        int modelRow = tabellaContatti.convertRowIndexToModel(selectedRow);
+        Persona personaDaModificare = tableModel.getPersonaAt(modelRow);
+        
         EditorPersona editor = new EditorPersona(this, personaDaModificare);
         Persona personaModificata = editor.showDialog();
 
         if (personaModificata != null) {
-            // The persona object is modified by reference in the editor,
-            // so we just need to update the table and save.
-            tableModel.fireTableRowsUpdated(selectedRow, selectedRow);
-            salvaContatti();
+            tableModel.fireTableRowsUpdated(modelRow, modelRow);
+            // Use the persistence manager to save
+            gestorePersistenza.salvaContatti(contatti);
         }
     }
 
     /**
      * Handles the "Elimina" button click.
-     * Deletes the selected person after confirmation.
      */
     private void onElimina() {
         int selectedRow = tabellaContatti.getSelectedRow();
@@ -127,7 +125,10 @@ public class FinestraPrincipale extends JFrame {
             return;
         }
 
-        Persona personaDaEliminare = tableModel.getPersonaAt(selectedRow);
+        // Convert view index to model index
+        int modelRow = tabellaContatti.convertRowIndexToModel(selectedRow);
+        Persona personaDaEliminare = tableModel.getPersonaAt(modelRow);
+        
         int choice = JOptionPane.showConfirmDialog(this,
                 "Eliminare la persona " + personaDaEliminare.getNome() + " " + personaDaEliminare.getCognome() + "?",
                 "Conferma Eliminazione",
@@ -136,63 +137,8 @@ public class FinestraPrincipale extends JFrame {
         if (choice == JOptionPane.YES_OPTION) {
             contatti.remove(personaDaEliminare);
             tableModel.fireTableDataChanged();
-            salvaContatti();
-        }
-    }
-
-    /**
-     * Loads the list of contacts from the "informazioni.txt" file.
-     * The file format is: nome;cognome;indirizzo;telefono;eta
-     */
-    private void caricaContatti() {
-        contatti = new Vector<>();
-        File file = new File(FILE_NAME);
-
-        // If the file doesn't exist, just start with an empty list. No error needed.
-        if (!file.exists()) {
-            return;
-        }
-
-        try (Scanner scanner = new Scanner(file)) {
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
-                String[] parts = line.split(";");
-                if (parts.length == 5) {
-                    try {
-                        String nome = parts[0];
-                        String cognome = parts[1];
-                        String indirizzo = parts[2];
-                        String telefono = parts[3];
-                        int eta = Integer.parseInt(parts[4]);
-                        contatti.add(new Persona(nome, cognome, indirizzo, telefono, eta));
-                    } catch (NumberFormatException e) {
-                        System.err.println("Skipping malformed line (invalid age): " + line);
-                    }
-                } else {
-                    System.err.println("Skipping malformed line (incorrect number of fields): " + line);
-                }
-            }
-        } catch (FileNotFoundException e) {
-            // This should not happen because we check file.exists(), but it's good practice.
-            JOptionPane.showMessageDialog(this, "File non trovato: " + FILE_NAME, "Errore di Caricamento", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    /**
-     * Saves the entire list of contacts to the "informazioni.txt" file.
-     * This method overwrites the file completely with the current data.
-     */
-    private void salvaContatti() {
-        try (PrintStream ps = new PrintStream(FILE_NAME)) {
-            for (Persona p : contatti) {
-                ps.println(p.getNome() + ";" +
-                           p.getCognome() + ";" +
-                           p.getIndirizzo() + ";" +
-                           p.getTelefono() + ";" +
-                           p.getEta());
-            }
-        } catch (FileNotFoundException e) {
-            JOptionPane.showMessageDialog(this, "Impossibile salvare il file: " + FILE_NAME, "Errore di Salvataggio", JOptionPane.ERROR_MESSAGE);
+            // Use the persistence manager to save
+            gestorePersistenza.salvaContatti(contatti);
         }
     }
 }
